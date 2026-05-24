@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPD Terminal - Official Blacklist Intelligence</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000000;
+            color: #96cc33;
+            font-family: 'Consolas', 'Courier New', monospace;
+            padding: 20px;
+            letter-spacing: 1px;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- ANIMACJA RETRO SZUMU (CRT NOISE) --- */
+        .efekt-szumu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(30,30,30,0.2), rgba(30,30,30,0.2) 2px, transparent 2px, transparent 4px),
+                        linear-gradient(45deg, rgba(50,50,50,0.1) 25%, transparent 25%, transparent 50%, rgba(50,50,50,0.1) 50%, rgba(50,50,50,0.1) 75%, transparent 75%, transparent 100%);
+            background-size: 100% 100%, 6px 6px;
+            z-index: 9990;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .szum-aktywny {
+            animation: odpalSzum 0.3s steps(2) infinite;
+            opacity: 1;
+        }
+
+        @keyframes odpalSzum {
+            0% { background-position: 0 0, 0 0; background-color: #111; }
+            50% { background-position: 10px 20px, 3px 3px; background-color: #222; }
+            100% { background-position: -10px -10px, -3px -3px; background-color: #151515; }
+        }
+
+        /* --- INTRO SEKWENCJA LOGOWANIA --- */
+        .ekran-intro {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            z-index: 9995;
+            padding: 30px;
+        }
+
+        .dolny-pasek-retro {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            right: 30px;
+            border-bottom: 6px dotted #96cc33;
+            opacity: 0.8;
+        }
+
+        .faza-laczenia {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #96cc33;
+            white-space: nowrap;
+        }
+
+        .faza-logowania {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 650px;
+            display: none;
+        }
+
+        .odznaka-rpd {
+            width: 150px;
+            height: 140px;
+            /* Dwa gradienty: pierwszy robi czarne poziome luki, drugi robi zielone pionowe pasy */
+            background: 
+                repeating-linear-gradient(0deg, transparent, transparent 3px, #000 3px, #000 7px),
+                repeating-linear-gradient(90deg, #96cc33, #96cc33 4px, transparent 4px, transparent 8px);
+            clip-path: polygon(
+                50% 8%,
+                63% 13%,
+                78% 8%,
+                92% 16%,
+                92% 55%,
+                50% 98%,
+                8% 55%,
+                8% 16%,
+                22% 8%,
+                37% 13%
+            );
+            margin-bottom: 25px;
+            opacity: 0.9;
+        }
+
+        .tekst-rpd {
+            color: #96cc33;
+            font-size: 22px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .ramka-logowania {
+            border: 4px solid #96cc33;
+            padding: 25px 40px;
+            width: 80%;
+            background-color: #000000;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+
+        .komunikat-weryfikacji {
+            font-size: 20px;
+            font-weight: bold;
+            color: #96cc33;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+        }
+
+        .tekst-migajacy { animation: miganieBiale 0.6s infinite ease-in-out; }
+        .kursor-obrotowy { display: inline-block; animation: obrotKurasora 1s infinite linear; }
+
+        @keyframes miganieBiale { 0%, 100% { color: #96cc33; } 50% { color: #ffffff; opacity: 0.8; } }
+        @keyframes obrotKurasora { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* Efekt gwałtownego białego mignięcia przy pojawianiu się i wyborze */
+        .miganie-wyboru {
+            animation: flashBialy 0.08s steps(2) 4;
+        }
+
+        @keyframes flashBialy {
+            0%, 100% { color: #ffffff; color: #96cc33; }
+            50% { color: #96cc33; color: #ffffff; }
+        }
+
+        /* --- ROZSZERZONY INTERFEJS NA WIĘKSZOŚĆ STRONY --- */
+        .interfejs-terminala {
+            width: 95%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding-top: 10px;
+        }
+
+        .naglowek-wyszukiwania {
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .linia-przerywana-retro {
+            width: 100%;
+            border-top: 5px dotted #96cc33;
+            margin: 15px 0;
+        }
+
+        .lista-kierowcow-rpd {
+            list-style: none;
+            margin-bottom: 25px;
+            max-height: 520px;
+            overflow-y: auto;
+        }
+
+        .lista-kierowcow-rpd::-webkit-scrollbar {
+            display: none;
+        }
+
+        .wiersz-kierowcy {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-bottom: 1px dashed rgba(150, 204, 51, 0.05);
+            opacity: 0;
+        }
+
+        .wiersz-kierowcy.widoczny {
+            opacity: 1;
+        }
+
+        .wiersz-kierowcy.aktywny, .opcja-menu-kartoteki.aktywny {
+            background-color: #27350c !important;
+            color: #96cc33;
+        }
+
+        .status-selekcji {
+            font-size: 18px;
+            font-weight: bold;
+            color: #96cc33;
+            text-transform: uppercase;
+            margin-top: 15px;
+            min-height: 25px;
+            visibility: hidden;
+        }
+
+        /* --- POTĘŻNY PANEL RAP SHEET --- */
+        .sekcja-kartoteki {
+            margin-top: 10px;
+            display: none;
+        }
+
+        .belka-rap-sheet {
+            background-color: #96cc33;
+            color: #000000;
+            font-size: 24px;
+            font-weight: 900;
+            padding: 8px 15px;
+            text-transform: uppercase;
+        }
+
+        .siatka-danych-rap {
+            background: linear-gradient(135deg, #1d2b05 25%, #152003 25%, #152003 50%, #1d2b05 50%, #1d2b05 75%, #152003 75%, #152003 100%);
+            background-size: 12px 12px;
+            border: 2px solid #96cc33;
+            padding: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 100px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .wiersz-rap {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(150, 204, 51, 0.3);
+            padding-bottom: 6px;
+        }
+
+        .wiersz-rap .etykieta { color: #96cc33; text-transform: uppercase; }
+        .wiersz-rap .wartosc { color: #ffffff; }
+
+        .wewnetrzny-panel-danych {
+            border: 2px solid #96cc33;
+            padding: 20px;
+            background-color: #000;
+            font-weight: bold;
+            font-size: 17px;
+            min-height: 140px;
+            line-height: 1.5;
+        }
+
+        .poziomy-poszukiwan {
+            display: flex;
+            gap: 30px;
+            margin: 12px 0;
+        }
+        .poziom-box { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 16px; }
+        .kwadrat-statusu { width: 16px; height: 16px; background-color: #111; border: 1px solid #444; }
+        .kwadrat-statusu.aktywny-warrant { background-color: #96cc33; border-color: #96cc33; box-shadow: 0 0 10px #96cc33; }
+
+        .menu-kartoteki {
+            margin-top: 15px;
+            padding-left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .opcja-menu-kartoteki {
+            font-size: 19px;
+            font-weight: bold;
+            color: #96cc33;
+            text-transform: uppercase;
+            padding: 4px 15px;
+            cursor: pointer;
+            width: fit-content;
+        }
+
+        .przycisk-powrotu { margin-top: 10px; color: #557711 !important; }
+        .przycisk-powrotu.aktywny { color: #96cc33 !important; background-color: #27350c !important; }
+
+        .stopka-prawa-rpd {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 25px;
+            text-transform: uppercase;
+            min-height: 24px;
+        }
+
+        .rpd-stempel { color: #96cc33; visibility: hidden; }
+        .case-file-stempel { color: #ffffff; font-weight: bold; visibility: hidden; }
+    </style>
+</head>
+<body>
+
+    <div id="szum-screen" class="efekt-szumu"></div>
+
+    <div id="intro-screen" class="ekran-intro">
+        <div id="napis-connecting" class="faza-laczenia">CONNECTING TO ROCKPORT POLICE DEPARTMENT...</div>
+        
+        <div id="blok-logowania" class="faza-logowania">
+            <div class="odznaka-rpd"></div>
+            <div class="tekst-rpd">Rockport Police Department</div>
+            
+            <div class="ramka-logowania">
+                <div style="margin-bottom: 12px;">SIGN IN: <span id="intro-login"></span></div>
+                <div>PASSWORD: <span id="intro-haslo"></span></div>
+            </div>
+            <div class="komunikat-weryfikacji" id="weryfikacja-box">
+                <span class="tekst-migajacy">SIGNING IN</span> 
+                <span class="kursor-obrotowy">\-</span>
+            </div>
+        </div>
+        
+        <div class="dolny-pasek-retro"></div>
+    </div>
+
+
+    <main class="interfejs-terminala" id="kontener-listy-glw" style="display: none;">
+        <div class="naglowek-wyszukiwania">
+            DATABASE ONLINE --/<br>RETRIEVING MOST WANTED BLACKLIST --/
+        </div>
+
+        <div class="linia-przerywana-retro"></div>
+
+        <ul class="lista-kierowcow-rpd" id="lista-blacklist">
+        </ul>
+
+        <div class="linia-przerywana-retro"></div>
+        <div class="status-selekcji" id="tekst-selekcji">SELECTION MADE, RETRIEVING ALIAS...</div>
+    </main>
+
+
+    <main class="interfejs-terminala sekcja-kartoteki" id="kontener-rap-sheet">
+        
+        <div class="belka-rap-sheet" id="dynamiczny-naglowek-belki">RAP SHEET</div>
+        
+        <div class="siatka-danych-rap">
+            <div class="wiersz-rap"><span class="etykieta">NAME:</span><span class="wartosc" id="rap-name">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">BOUNTY:</span><span class="wartosc" id="rap-bounty">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">COST TO STATE:</span><span class="wartosc" id="rap-cost">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">FINES DUE:</span><span class="wartosc" id="rap-fines">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">CARS IMPOUNDED:</span><span class="wartosc" id="rap-impounded">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">PURSUITS EVADED:</span><span class="wartosc" id="rap-evaded">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">CARS MONITORED:</span><span class="wartosc" id="rap-monitored">--</span></div>
+            <div class="wiersz-rap"><span class="etykieta">BUSTED:</span><span class="wartosc" id="rap-busted">0</span></div>
+        </div>
+
+        <div class="linia-przerywana-retro"></div>
+
+        <div class="wewnetrzny-panel-danych" id="zawartosc-zakladki-menu"></div>
+
+        <div class="linia-przerywana-retro"></div>
+
+        <div class="menu-kartoteki" id="blok-menu-kartoteki">
+            <div class="opcja-menu-kartoteki" data-target="SUMMARY" onclick="klikMenu(0)">> SUMMARY</div>
+            <div class="opcja-menu-kartoteki" data-target="VEHICLE" onclick="klikMenu(1)">> VEHICLE DATABASE</div>
+            <div class="opcja-menu-kartoteki" data-target="INFRACTIONS" onclick="klikMenu(2)">> INFRACTIONS</div>
+            <div class="opcja-menu-kartoteki" data-target="COST" onclick="klikMenu(3)">> COST TO STATE</div>
+            <div class="opcja-menu-kartoteki" data-target="PURSUITS" onclick="klikMenu(4)">> TOP 5 PURSUITS</div>
+            <div class="opcja-menu-kartoteki" data-target="RANKINGS" onclick="klikMenu(5)">> RANKINGS</div>
+            <div class="opcja-menu-kartoteki" data-target="WARRANT" onclick="klikMenu(6)">> WARRANT</div>
+            <div class="opcja-menu-kartoteki przycisk-powrotu" data-target="BACK" onclick="klikMenu(7)">> [ BACK TO LIST ]</div>
+        </div>
+
+        <div class="linia-przerywana-retro"></div>
+        
+        <div class="stopka-prawa-rpd">
+            <div class="rpd-stempel" id="stempel-rpd-tekst">ROCKPORT P.D.</div>
+            <div class="case-file-stempel" id="stempel-case-file">CASE FILE: --</div>
+        </div>
+    </main>
+
+
+    <script>
+        const daneKierowcow = {
+            'PLAYER': { name: 'THE PLAYER (GRACZ)', bounty: '25,000,000', cost: '18,400,000', fines: '145,900', impounded: '0', evaded: '210', monitored: '45', case: 'MW-0000-PLTR', car: 'BMW M3 GTR (E46)', infractions: 'GRAND THEFT AUTO, FELONY FLIGHT, RECKLESS DRIVING, EXCESSIVE SPEEDING, AVOIDING ARREST', costDetails: 'CRUISER DAMAGE: $11,200,000 / STATE PROPERTY DESTRUCTION: $7,200,000', pursuits: '1. ROCKPORT TURNPIKE ESCAPE (51 MIN) / 2. CAMDEN INDUSTRIAL LOOP (38 MIN) / 3. ROSEWOOD HIGHLANDS SPRINT (31 MIN)', ranking: 'TARGET #00 - MOST WANTED UNDERGROUND LEGEND', warrantLvl: 'national', bio: 'Główny wróg seryjnego wydziału pościgowego i sierżanta Crossa. Wjechał do miasta legendarnym BMW M3 GTR, stracił je w wyniku sabotażu Razora, po czym bezwzględnie rozbił całą hierarchię kartoteki RPD, odbierając auto i uciekając z miasta spektakularnym skokiem nad zniszczonym mostem.' },
+            'RAZOR': { name: 'CLARENCE CALLAHAN (RAZOR)', bounty: '10,000,000', cost: '8,500,000', fines: '68,200', impounded: '0', evaded: '85', monitored: '22', case: 'MW-1001-CCXX', car: 'FORD MUSTANG GT (ORIGINAL) / BMW M3 GTR', infractions: 'SPEEDING, RECKLESS DRIVING, GRAND THEFT AUTO, OPERATING AN ILLEGAL RACING SYNDICATE, CRIMINAL CONSPIRACY', costDetails: 'CRUISER DAMAGE: $5,400,000 / PROPERTY DAMAGE: $3,100,000', pursuits: '1. DOWNTOWN CORE CIRCUIT (28 MIN) / 2. HIGHWAY 99 OUTFLOW (21 MIN)', ranking: 'BLACKLIST NO. 1', warrantLvl: 'national', bio: 'Zaczynał na pozycji #15 jeżdżąc czarnym Fordem Mustangiem GT. Przejął BMW M3 GTR Gracza poprzez sabotaż układu olejowego, co pozwoliło mu błyskawicznie zdominować Rockport i wdrapać się na sam szczyt Czarnej Listy.' },
+            'BULL': { name: 'TORU SATO (BULL)', bounty: '7,550,000', cost: '4,850,000', fines: '42,000', impounded: '3', evaded: '64', monitored: '15', case: 'MW-9842-TSXX', car: 'MERCEDES-BENZ SLR MCLAREN', infractions: 'RAMMING POLICE UNITS, DRIVING WITHOUT A VALID LICENSE, ASSAULT WITH A VEHICLE', costDetails: 'CRUISER DAMAGE: $3,500,000 / PROPERTY DAMAGE: $1,350,000', pursuits: '1. ROSEWOOD BLOCKADES (19 MIN) / 2. NORTH COAL RUN (16 MIN)', ranking: 'BLACKLIST NO. 2', warrantLvl: 'state', bio: 'Prawa ręka Razora. Nigdy nie opuścił jego boku od czasu pamiętnych starć w dokach. Jego potężny SLR McLaren jest zmodyfikowany pod kątem przebijania się przez policyjne blokady drogowe trzeciego i czwartego stopnia.' },
+            'RONNIE': { name: 'RONALD MCCREA (RONNIE)', bounty: '5,550,000', cost: '3,120,000', fines: '31,500', impounded: '1', evaded: '52', monitored: '11', case: 'MW-5521-RMXX', car: 'ASTON MARTIN DB9', infractions: 'EXCESSIVE SPEEDING, EVADING ARREST, DESTRUCTION OF EVIDENCE', costDetails: 'CRUISER DAMAGE: $2,100,000 / PROPERTY DAMAGE: $1,020,000', pursuits: '1. INDUSTRIAL DISTRICT SPRINT (22 MIN) / 2. CAMDEN PORT CHASE (13 MIN)', ranking: 'BLACKLIST NO. 3', warrantLvl: 'state', bio: 'Dziecko z bogatej rodziny, które otrzymało swojego luksusowego Astona Martina DB9 jako prezent na ukończenie szkoły. Całkowicie lojalny wobec Razora, cechuje go skrajna pogarda dla nowych pretendentów.' },
+            'JV': { name: 'JOE VEGA (JV)', bounty: '4,050,000', cost: '2,890,000', fines: '24,400', impounded: '2', evaded: '46', monitored: '10', case: 'MW-3310-JVXX', car: 'DODGE VIPER SRT-10', infractions: 'ILLEGAL PERFORMANCE MODIFICATIONS, STREET RACING, ELUDING HIGHWAY PATROL', costDetails: 'CRUISER DAMAGE: $1,900,000 / PROPERTY DAMAGE: $990,000', pursuits: '1. HIGHWAY OVERPASS DRIFT (15 MIN) / 2. DUNWICH CORE ESCAPE (12 MIN)', ranking: 'BLACKLIST NO. 4', warrantLvl: 'city', bio: 'Nocny DJ oraz mechanik amator. RPD namierza go głównie w rejonach klubów muzycznych i autostrad Camden. Charakteryzuje się bardzo agresywnym stylem jazdy w nocy.' },
+            'WEBSTER': { name: 'WES ALLEN (WEBSTER)', bounty: '3,050,000', cost: '2,114,000', fines: '21,500', impounded: '1', evaded: '41', monitored: '12', case: 'MW-7112-WAXX', car: 'CHEVROLET CORVETTE C6', infractions: 'RECKLESS DRIVING, SPEEDING IN RESIDENTIAL AREAS, ILLEGAL NITROUS USE', costDetails: 'CRUISER DAMAGE: $1,400,000 / PROPERTY DAMAGE: $714,000', pursuits: '1. SUBURBAN ESCAPE VECTORS (17 MIN) / 2. BACKROADS CHASE LOGS (14 MIN)', ranking: 'BLACKLIST NO. 5', warrantLvl: 'city', bio: 'Fanatyk amerykańskiej mocy i ekstremalnego tuningu. Rozmawia z innymi kierowcami wyłącznie o parametrach technicznych silników. Unika taranowania radiowozów, stawiając na czystą prędkość.' },
+            'MING': { name: 'HECTOR DOMINGO (MING)', bounty: '2,300,000', cost: '1,800,000', fines: '18,000', impounded: '0', evaded: '38', monitored: '9', case: 'MW-4091-HDXX', car: 'LAMBORGHINI GALLARDO', infractions: 'STREET RACING, DANGEROUS OVERTAKING, HIT & RUN', costDetails: 'CRUISER DAMAGE: $1,200,000 / PROPERTY DAMAGE: $600,000', pursuits: '1. COASTAL LINE EXPRESSWAY (14 MIN) / 2. EAST CHICANE ESCAPE (10 MIN)', ranking: 'BLACKLIST NO. 6', warrantLvl: 'city', bio: 'Jego Gallardo wygląda nieskazitelnie, jakby dopiero opuściło salon. Ekstremalnie szybki i precyzyjny na prostych odcinkach dróg oraz autostradach.' },
+            'KAMIKAZE': { name: 'KIRA NAKAZATO (KAMIKAZE)', bounty: '1,680,000', cost: '1,420,000', fines: '15,200', impounded: '2', evaded: '34', monitored: '8', case: 'MW-2211-KNXX', car: 'MERCEDES-BENZ CLK 500', infractions: 'STREET RACING, FELONY PROPERTY DAMAGE, RECKLESS ENDANGERMENT', costDetails: 'CRUISER DAMAGE: $950,000 / PROPERTY DAMAGE: $470,000', pursuits: '1. INDUSTRIAL SECTOR HIGH-SPEED RUN (16 MIN)', ranking: 'BLACKLIST NO. 7', warrantLvl: 'city', bio: 'Urodzona na Zachodnim Wybrzeżu, znana ze stosowania technik wojny psychologicznej podczas wyścigów. Jej styl jest chaotyczny, nie waha się spychać rywali na cywilne pojazdy.' },
+            'JEWELS': { name: 'JADE BARRETT (JEWELS)', bounty: '1,380,000', cost: '1,110,000', fines: '12,500', impounded: '1', evaded: '30', monitored: '7', case: 'MW-8088-JBXX', car: 'FORD MUSTANG GT', infractions: 'ILLEGAL STREET RACING, SPEEDING CONVICTIONS, EVADING ARREST', costDetails: 'CRUISER DAMAGE: $800,000 / PROPERTY DAMAGE: $310,000', pursuits: '1. HIGHWAY 201 SPRINT RUN (12 MIN)', ranking: 'BLACKLIST NO. 8', warrantLvl: 'city', bio: 'Niewątpliwa królowa wyścigów typu drag w Rockport. Jej potężnie zmodyfikowany Mustang GT dysponuje gigantycznym przyspieszeniem ze startu zatrzymanego.' },
+            'EARL': { name: 'LOU KALLE (EARL)', bounty: '1,050,000', cost: '850,000', fines: '10,800', impounded: '1', evaded: '29', monitored: '11', case: 'MW-2356-LKXX', car: 'MITSUBISHI LANCER EVOLUTION VIII', infractions: 'RECKLESS DRIVING, EXCESSIVE VELOCITY, ILLEGAL SPRINTING', costDetails: 'CRUISER DAMAGE: $600,000 / PROPERTY DAMAGE: $250,000', pursuits: '1. SUBURBIA COMPLEX CIRCUITS (14 MIN)', ranking: 'BLACKLIST NO. 9', warrantLvl: 'city', bio: 'Wychowany we wschodnich rejonach Camden. Mistrz techniczny ciasnych, technicznych łuków i zakrętów. Wykorzystuje napęd na cztery koła (AWD) swojego Lancer Evolution do ucieczek przez bezdroża i parki.' },
+            'BARON': { name: 'KARL SMIT (BARON)', bounty: '850,000', cost: '650,000', fines: '9,500', impounded: '3', evaded: '25', monitored: '6', case: 'MW-4412-KSXX', car: 'PORSCHE CAYMAN S', infractions: 'SPEEDING IN RESTRICTED ZONES, EXPIRED HIGHWAY REGISTRATION', costDetails: 'CRUISER DAMAGE: $450,000 / PROPERTY DAMAGE: $200,000', pursuits: '1. GOLF COURSE LANDSCAPE RUN (11 MIN)', ranking: 'BLACKLIST NO. 10', warrantLvl: 'city', bio: 'Uważa się za elitę i wyższą sferę Rockport. Mimo drogiego wozu i wielkich ambicji, bardzo łatwo popełnia błędy i pęka pod naciskiem długofalowych pościgów policyjnych.' },
+            'BIG LOU': { name: 'LOU PARK (BIG LOU)', bounty: '580,000', cost: '480,000', fines: '8,200', impounded: '2', evaded: '22', monitored: '8', case: 'MW-0011-LPXX', car: 'MITSUBISHI ECLIPSE', infractions: 'ILLEGAL RACING, DRIFT CONVICTIONS, ELUDING PATROL UNITS', costDetails: 'CRUISER DAMAGE: $350,000 / PROPERTY DAMAGE: $130,000', pursuits: '1. DOWNTOWN SPRINT CHASE (9 MIN)', ranking: 'BLACKLIST NO. 11', warrantLvl: 'city', bio: 'Zyskał rozgłos ucieczką przed trzema radiowozami RPD, wykorzystując ryzykowny i wąski skrót w starym tunelu kolejowym Rockport.' },
+            'IZZY': { name: 'ISABEL DIAZ (IZZY)', bounty: '400,000', cost: '320,000', fines: '6,000', impounded: '1', evaded: '19', monitored: '5', case: 'MW-1313-IDXX', car: 'MAZDA RX-8', infractions: 'ILLEGAL STRUCTURAL MODIFICATIONS, SPEEDING VIOLATIONS', costDetails: 'CRUISER DAMAGE: $220,000 / PROPERTY DAMAGE: $100,000', pursuits: '1. ROSEWOOD BACKUP CIRCUITS (9 MIN)', ranking: 'BLACKLIST NO. 12', warrantLvl: 'city', bio: 'Dziewczyna z południowych rejonów miasta. Posiada świetnie wyważoną Mazdę RX-8 z silnikiem Wankla. Wyjątkowo groźna w zaciętych wyścigach okrężnych.' },
+            'VIC': { name: 'VICTOR VASQUEZ (VIC)', bounty: '275,000', cost: '190,000', fines: '4,800', impounded: '0', evaded: '16', monitored: '6', case: 'MW-8890-VVXX', car: 'TOYOTA SUPRA', infractions: 'STREET RACING ACTIVITIES, DANGEROUS HIGHWAY DRIVING', costDetails: 'CRUISER DAMAGE: $140,000 / PROPERTY DAMAGE: $50,000', pursuits: '1. CAMDEN DOCK LOOPS (8 MIN)', ranking: 'BLACKLIST NO. 13', warrantLvl: 'city', bio: 'Otwarcie demonstruje nienawiść do organów ścigania. Celowo prowokuje patrole RPD w okolicach portu przemysłowego Camden, po czym urywa się im na autostradzie.' },
+            'TAZ': { name: 'VINCE KILIC (TAZ)', bounty: '180,000', cost: '110,000', fines: '3,500', impounded: '1', evaded: '12', monitored: '4', case: 'MW-0707-VKXX', car: 'LEXUS IS 300', infractions: 'EXCESSIVE SPEEDING, URBAN RECKLESS DRIVING', costDetails: 'CRUISER DAMAGE: $80,000 / PROPERTY DAMAGE: $30,000', pursuits: '1. INDUSTRIAL SPRINT ESCAPE (6 MIN)', ranking: 'BLACKLIST NO. 14', warrantLvl: 'city', bio: 'Niezwykle agresywny nowicjusz na scenie Rockport. Za wszelką cenę próbuje naśladować bezwzględny styl jazdy Razora, przez co niszczy sporo aut cywilnych.' },
+            'SONNY': { name: 'HO SEUN (SONNY)', bounty: '90,000', cost: '60,000', fines: '2,000', impounded: '4', evaded: '9', monitored: '3', case: 'MW-0015-HSXX', car: 'VOLKSWAGEN GOLF GTI', infractions: 'STREET RACING LEVEL 1, MINOR PROPERTY DAMAGE', costDetails: 'CRUISER DAMAGE: $40,000 / PROPERTY DAMAGE: $20,000', pursuits: '1. ROSEWOOD RESIDENTIAL CHASE (5 MIN)', ranking: 'BLACKLIST NO. 15', warrantLvl: 'city', bio: 'Brama wjazdowa do Czarnej Listy Rockport. Jego zmodyfikowany Golf GTI jest pod stałą obserwacją patroli dzielnicowych. Idealny cel szkoleniowy dla rekrutów RPD.' }
+        };
+
+        const kluczeKierowcow = Object.keys(daneKierowcow);
+
+        let aktualnyEkran = 'INTRO';
+        let indexWyboru = 0;
+        let aktualnyKierowcaID = '';
+        let blokadaAkcji = true;
+
+        // --- RENDEROWANIE LISTY DO HTML ---
+        function zbudujListeBlacklist() {
+            const ul = document.getElementById('lista-blacklist');
+            ul.innerHTML = '';
+            kluczeKierowcow.forEach((klucz, i) => {
+                const d = daneKierowcow[klucz];
+                const li = document.createElement('li');
+                li.className = 'wiersz-kierowcy';
+                li.setAttribute('data-id', klucz);
+                li.setAttribute('onclick', `klikWiersz(${i})`);
+                
+                if(klucz === 'PLAYER') {
+                    li.innerText = `> NO. 00 -- ${d.name} (${d.car})`;
+                } else {
+                    const nr = d.ranking.split('NO. ')[1];
+                    li.innerText = `> NO. ${nr.padStart(2, '0')} -- ${d.name} (${d.car.split(' / ')[0]})`;
+                }
+                ul.appendChild(li);
+            });
+        }
+
+        // --- INTRO KROK PO KROKU ---
+        document.addEventListener("DOMContentLoaded", () => {
+            zbudujListeBlacklist();
+            
+            // KROK 1: Napis "CONNECTING..." świeci przez 1.5 sekundy
+            setTimeout(() => {
+                document.getElementById('napis-connecting').style.display = 'none';
+                const blokLogowania = document.getElementById('blok-logowania');
+                blokLogowania.style.display = 'flex';
+                
+                // KROK 2: Wpisywanie danych
+                const loginBox = document.getElementById("intro-login");
+                const hasloBox = document.getElementById("intro-haslo");
+                const loginTekst = "CROSS";
+                const hasloTekst = "XXXXXXX";
+                
+                let i = 0, j = 0;
+                
+                function piszLogin() {
+                    if (i < loginTekst.length) { 
+                        loginBox.textContent += loginTekst.charAt(i);
+                        i++; 
+                        setTimeout(piszLogin, 120); 
+                    } else { 
+                        setTimeout(piszHaslo, 200);
+                    }
+                }
+                function piszHaslo() {
+                    if (j < hasloTekst.length) { 
+                        hasloBox.textContent += hasloTekst.charAt(j);
+                        j++; 
+                        setTimeout(piszHaslo, 100); 
+                    } else { 
+                        document.getElementById('weryfikacja-box').style.opacity = '1';
+                        ZakonczLogowanieIPokazSzum(); 
+                    }
+                }
+                piszLogin();
+            }, 1500);
+        });
+
+        function ZakonczLogowanieIPokazSzum() {
+            setTimeout(() => {
+                const szum = document.getElementById('szum-screen');
+                szum.classList.add('szum-aktywny');
+                
+                setTimeout(() => {
+                    document.getElementById('intro-screen').style.display = 'none';
+                    document.getElementById('kontener-listy-glw').style.display = 'block';
+                    szum.classList.remove('szum-aktywny');
+                    
+                    aktualnyEkran = 'LISTA';
+                    indexWyboru = 0;
+                    AnimujPojawianieSieListy(); 
+                }, 600);
+            }, 1500);
+        }
+
+        function AnimujPojawianieSieListy() {
+            blokadaAkcji = true;
+            const wiersze = document.querySelectorAll('#lista-blacklist .wiersz-kierowcy');
+            let i = 0;
+
+            function pokazKolejny() {
+                if (i < wiersze.length) {
+                    const wiersz = wiersze[i];
+                    wiersz.classList.add('widoczny', 'miganie-wyboru');
+                    
+                    setTimeout(() => {
+                        wiersz.classList.remove('miganie-wyboru');
+                    }, 350);
+                    i++;
+                    setTimeout(pokazKolejny, 120);
+                } else {
+                    blokadaAkcji = false;
+                    AktualizujPodswietlenieListy();
+                }
+            }
+            pokazKolejny();
+        }
+
+        // --- KLAWIATURA ENGINE ---
+        document.addEventListener('keydown', (e) => {
+            if (blokadaAkcji) return;
+
+            if (aktualnyEkran === 'LISTA') {
+                const wiersze = document.querySelectorAll('#lista-blacklist .wiersz-kierowcy');
+                if (e.key === 'ArrowDown') {
+                    if (indexWyboru < wiersze.length - 1) indexWyboru++;
+                    AktualizujPodswietlenieListy();
+                } else if (e.key === 'ArrowUp') {
+                    if (indexWyboru > 0) indexWyboru--;
+                    AktualizujPodswietlenieListy();
+                } else if (e.key === 'Enter') {
+                    ZatwierdzWyborKierowcy(wiersze[indexWyboru]);
+                }
+            } 
+            else if (aktualnyEkran === 'KARTOTEKA') {
+                const opcje = document.querySelectorAll('#blok-menu-kartoteki .opcja-menu-kartoteki');
+                if (e.key === 'ArrowDown') {
+                    if (indexWyboru < opcje.length - 1) indexWyboru++;
+                    AktualizujPodswietlenieMenu();
+                } else if (e.key === 'ArrowUp') {
+                    if (indexWyboru > 0) indexWyboru--;
+                    AktualizujPodswietlenieMenu();
+                } else if (e.key === 'Enter') {
+                    ZatwierdzOpcjeMenu(opcje[indexWyboru]);
+                }
+            }
+        });
+
+        // --- MYSZKA ENGINE ---
+        function klikWiersz(idx) {
+            if (blokadaAkcji || aktualnyEkran !== 'LISTA') return;
+            indexWyboru = idx;
+            AktualizujPodswietlenieListy();
+            const wiersze = document.querySelectorAll('#lista-blacklist .wiersz-kierowcy');
+            ZatwierdzWyborKierowcy(wiersze[idx]);
+        }
+
+        function klikMenu(idx) {
+            if (blokadaAkcji || aktualnyEkran !== 'KARTOTEKA') return;
+            indexWyboru = idx;
+            AktualizujPodswietlenieMenu();
+            const opcje = document.querySelectorAll('#blok-menu-kartoteki .opcja-menu-kartoteki');
+            ZatwierdzOpcjeMenu(opcje[idx]);
+        }
+
+        function AktualizujPodswietlenieListy() {
+            const wiersze = document.querySelectorAll('#lista-blacklist .wiersz-kierowcy');
+            wiersze.forEach((w, idx) => {
+                if (idx === indexWyboru) {
+                    w.classList.add('aktywny');
+                    w.scrollIntoView({ block: 'nearest' });
+                } else {
+                    w.classList.remove('aktywny');
+                }
+            });
+        }
+
+        function ZatwierdzWyborKierowcy(element) {
+            blokadaAkcji = true;
+            element.classList.add('miganie-wyboru');
+            document.getElementById('tekst-selekcji').style.visibility = 'visible';
+            
+            aktualnyKierowcaID = element.getAttribute('data-id');
+            LadowanieDanychRapSheet(aktualnyKierowcaID);
+
+            setTimeout(() => {
+                element.classList.remove('miganie-wyboru');
+                const szum = document.getElementById('szum-screen');
+                szum.classList.add('szum-aktywny');
+
+                setTimeout(() => {
+                    document.getElementById('kontener-listy-glw').style.display = 'none';
+                    document.getElementById('kontener-rap-sheet').style.display = 'block';
+                    szum.classList.remove('szum-aktywny');
+                    
+                    aktualnyEkran = 'KARTOTEKA';
+                    indexWyboru = 0;
+                    AktualizujPodswietlenieMenu();
+                    GenerujPodstroneMenu('SUMMARY');
+                    UruchomSekwencjeStempli();
+                }, 500);
+            }, 1000);
+        }
+
+        function AktualizujPodswietlenieMenu() {
+            const opcje = document.querySelectorAll('#blok-menu-kartoteki .opcja-menu-kartoteki');
+            opcje.forEach((o, idx) => {
+                if (idx === indexWyboru) o.classList.add('aktywny');
+                else o.classList.remove('aktywny');
+            });
+        }
+
+        function ZatwierdzOpcjeMenu(element) {
+            blokadaAkcji = true;
+            element.classList.add('miganie-wyboru');
+            const cel = element.getAttribute('data-target');
+
+            setTimeout(() => {
+                element.classList.remove('miganie-wyboru');
+                if (cel === 'BACK') {
+                    PowrotDoListy();
+                } else {
+                    GenerujPodstroneMenu(cel);
+                    blokadaAkcji = false; 
+                }
+            }, 400);
+        }
+
+        function PowrotDoListy() {
+            const szum = document.getElementById('szum-screen');
+            szum.classList.add('szum-aktywny');
+            
+            document.getElementById('stempel-rpd-tekst').style.visibility = 'hidden';
+            document.getElementById('stempel-case-file').style.visibility = 'hidden';
+
+            setTimeout(() => {
+                document.getElementById('kontener-rap-sheet').style.display = 'none';
+                document.getElementById('tekst-selekcji').style.visibility = 'hidden';
+                document.getElementById('kontener-listy-glw').style.display = 'block';
+                szum.classList.remove('szum-aktywny');
+                
+                aktualnyEkran = 'LISTA';
+                indexWyboru = kluczeKierowcow.indexOf(aktualnyKierowcaID);
+                blokadaAkcji = false; 
+                AktualizujPodswietlenieListy();
+            }, 500);
+        }
+
+        function UruchomSekwencjeStempli() {
+            const rpdText = document.getElementById('stempel-rpd-tekst');
+            const caseFile = document.getElementById('stempel-case-file');
+
+            setTimeout(() => {
+                rpdText.style.visibility = 'visible';
+                setTimeout(() => {
+                    caseFile.style.visibility = 'visible';
+                    blokadaAkcji = false; 
+                }, 400);
+            }, 200);
+        }
+
+        function LadowanieDanychRapSheet(id) {
+            const data = daneKierowcow[id];
+            if (!data) return;
+            document.getElementById('rap-name').innerText = data.name;
+            document.getElementById('rap-bounty').innerText = data.bounty;
+            document.getElementById('rap-cost').innerText = data.cost;
+            document.getElementById('rap-fines').innerText = data.fines;
+            document.getElementById('rap-impounded').innerText = data.impounded;
+            document.getElementById('rap-evaded').innerText = data.evaded;
+            document.getElementById('rap-monitored').innerText = data.monitored;
+            document.getElementById('stempel-case-file').innerText = "CASE FILE: " + data.case;
+        }
+
+        function GenerujPodstroneMenu(typ) {
+            const data = daneKierowcow[aktualnyKierowcaID];
+            const panel = document.getElementById('zawartosc-zakladki-menu');
+            const belka = document.getElementById('dynamiczny-naglowek-belki');
+            if (!data) return;
+
+            if (typ === 'SUMMARY') {
+                belka.innerText = "RAP SHEET OVERVIEW";
+                panel.innerHTML = `<div><strong>TARGET INTEL:</strong> ${data.bio}</div>`;
+            } else if (typ === 'VEHICLE') {
+                belka.innerText = "VEHICLE DATABASE";
+                panel.innerHTML = `<div><strong>REGISTERED VEHICLES:</strong> <span style="color:#ffffff;">${data.car}</span></div><div style="margin-top:8px;"><strong>PERFORMANCE PACKAGE:</strong> PRO LEVEL INDUCTION SYSTEM / RE-MAPPED ECU / STAGE 3 LAUNCH CONTROL & NITROUS EQUIPPED.</div>`;
+            } else if (typ === 'INFRACTIONS') {
+                belka.innerText = "RECORDED INFRACTIONS";
+                panel.innerHTML = `<div style="color:#ff3333;"><strong>CONFIRMED VIOLATIONS:</strong> ${data.infractions}</div>`;
+            } else if (typ === 'COST') {
+                belka.innerText = "COST TO STATE RECORD";
+                panel.innerHTML = `<div><strong>DAMAGE ASSESSMENTS:</strong><br>${data.costDetails}</div>`;
+            } else if (typ === 'PURSUITS') {
+                belka.innerText = "TOP PURSUITS LOGS";
+                panel.innerHTML = `<div><strong>MAXIMUM EVASION TIMES:</strong><br>${data.pursuits}</div>`;
+            } else if (typ === 'RANKINGS') {
+                belka.innerText = "RPD BLACKLIST RANKINGS";
+                panel.innerHTML = `<div style="color:#96cc33; font-size:20px;"><strong>STATUS: ${data.ranking}</strong></div>`;
+            } else if (typ === 'WARRANT') {
+                belka.innerText = "ISSUED POLICE WARRANT";
+                let cityCls = 'aktywny-warrant';
+                let stateCls = data.warrantLvl === 'state' || data.warrantLvl === 'national' ? 'aktywny-warrant' : '';
+                let natCls = data.warrantLvl === 'national' ? 'aktywny-warrant' : '';
+
+                panel.innerHTML = `
+                    <div style="margin-bottom: 8px;"><strong>PATROL NOTICE:</strong> TACTICAL PIT MANEUVER AND SPIKE STRIPS AUTHORIZED FOR THREAT LEVEL.</div>
+                    <div style="font-size: 14px; color: #96cc33; margin-bottom: 5px;">CURRENT DEFCON STATUS:</div>
+                    <div class="poziomy-poszukiwan">
+                        <div class="poziom-box"><div class="kwadrat-statusu ${cityCls}"></div> > CITYWIDE JURISDICTION</div>
+                        <div class="poziom-box"><div class="kwadrat-statusu ${stateCls}"></div> > STATEWIDE BOUNTY</div>
+                        <div class="poziom-box"><div class="kwadrat-statusu ${natCls}"></div> > NATIONAL APPREHENSION ORDER</div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
